@@ -1,5 +1,5 @@
 # Test stage
-FROM Alpine AS test
+FROM alpine AS test
 LABEL application=todobackend
 
 # Install basic utilities
@@ -14,7 +14,7 @@ COPY /src/requirements* /build/
 WORKDIR /build
 
 # Build and install requirements
-RUN pip3 wheel -r requirements_test.txt --no-cache-dir --no-inputs
+RUN pip3 wheel -r requirements_test.txt --no-cache-dir --no-input
 RUN pip3 install -r requirements_test.txt -f /build --no-index --no-cache-dir
 
 # Copy source code
@@ -22,4 +22,24 @@ COPY /src /app
 WORKDIR /app
 
 # Test entrypoint
-CMD ["python2", "manage.py", "test", "--no-input", "settings=todobackend.settings_test"]
+CMD ["python3", "manage.py", "test", "--noinput", "--settings=todobackend.settings_test"]
+
+# Release stage
+FROM alpine
+LABEL application=todobackend
+
+# Install operating syste dependencies
+RUN apk add --no-cache python3 mariadb-client bash
+
+# Create app user
+RUN addgroup -g 1000 app && adduser -u 1000 -G app -D app
+
+# Copy and install application source and pre-built dependencies
+COPY --from=test --chown=app:app /build /build
+COPY --from=test --chown=app:app /app /app
+RUN pip3 install -r /build/requirements.txt -f /build --no-index --no-cache-dir
+RUN rm -rf /build
+
+# Set working directory and application user
+WORKDIR /app
+USER app
